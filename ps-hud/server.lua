@@ -1,6 +1,24 @@
 local QBCore = exports['qb-core']:GetCoreObject()
 local ResetStress = false
 
+local function normalizeStressAmount(amount)
+    local parsed = tonumber(amount)
+    if not parsed then return 0 end
+    parsed = math.floor(parsed)
+    if parsed < 0 then
+        parsed = 0
+    end
+    return parsed
+end
+
+local function isPoliceStressExempt(Player)
+    if not Config.DisablePoliceStress then return false end
+
+    local job = Player.PlayerData and Player.PlayerData.job or {}
+    return job.type == 'leo' or job.name == 'police'
+end
+
+
 QBCore.Commands.Add('cash', Lang:t('info.check_cash_balance'), {}, false, function(source, args)
     local Player = QBCore.Functions.GetPlayer(source)
     local cashamount = Player.PlayerData.money.cash
@@ -18,10 +36,12 @@ QBCore.Commands.Add("dev", Lang:t('info.toggle_dev_mode'), {}, false, function(s
 end, 'admin')
 
 RegisterNetEvent('hud:server:GainStress', function(amount)
+    amount = normalizeStressAmount(amount)
     local src = source
     local Player = QBCore.Functions.GetPlayer(src)
     local newStress
-    if not Player or (Config.DisablePoliceStress and Player.PlayerData.job.name == 'police') then return end
+    if amount <= 0 then return end
+    if not Player or isPoliceStressExempt(Player) then return end
     if not ResetStress then
         if not Player.PlayerData.metadata['stress'] then
             Player.PlayerData.metadata['stress'] = 0
@@ -40,9 +60,11 @@ RegisterNetEvent('hud:server:GainStress', function(amount)
 end)
 
 RegisterNetEvent('hud:server:RelieveStress', function(amount)
+    amount = normalizeStressAmount(amount)
     local src = source
     local Player = QBCore.Functions.GetPlayer(src)
     local newStress
+    if amount <= 0 then return end
     if not Player then return end
     if not ResetStress then
         if not Player.PlayerData.metadata['stress'] then

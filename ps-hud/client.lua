@@ -54,6 +54,60 @@ local Menu = {
     isToggleMapShapeChecked = 'square',
 }
 
+
+local function clampPercent(value, fallback)
+    local number = tonumber(value)
+    if number == nil then
+        return fallback or 0
+    end
+
+    number = math.floor(number + 0.0)
+    if number < 0 then number = 0 end
+    if number > 100 then number = 100 end
+
+    return number
+end
+
+local function syncCoreStatusValues()
+    local metadata = PlayerData and PlayerData.metadata or nil
+
+    if metadata then
+        local metadataHunger = metadata.hunger or metadata.food
+        local metadataThirst = metadata.thirst or metadata.water
+        local metadataStress = metadata.stress or metadata.stresslevel
+
+        if metadataHunger ~= nil then
+            hunger = clampPercent(metadataHunger, hunger)
+        end
+
+        if metadataThirst ~= nil then
+            thirst = clampPercent(metadataThirst, thirst)
+        end
+
+        if metadataStress ~= nil then
+            stress = clampPercent(metadataStress, stress)
+        end
+    end
+
+    if LocalPlayer and LocalPlayer.state then
+        local stateHunger = LocalPlayer.state.hunger or LocalPlayer.state.food
+        local stateThirst = LocalPlayer.state.thirst or LocalPlayer.state.water
+        local stateStress = LocalPlayer.state.stress or LocalPlayer.state.stresslevel
+
+        if stateHunger ~= nil then
+            hunger = clampPercent(stateHunger, hunger)
+        end
+
+        if stateThirst ~= nil then
+            thirst = clampPercent(stateThirst, thirst)
+        end
+
+        if stateStress ~= nil then
+            stress = clampPercent(stateStress, stress)
+        end
+    end
+end
+
 DisplayRadar(false)
 
 local function CinematicShow(bool)
@@ -146,6 +200,7 @@ RegisterNetEvent("QBCore:Client:OnPlayerLoaded", function()
     HandleSetupResource()
     loadSettings()
     PlayerData = QBCore.Functions.GetPlayerData()
+    syncCoreStatusValues()
 end)
 
 RegisterNetEvent("QBCore:Client:OnPlayerUnload", function()
@@ -156,6 +211,7 @@ end)
 
 RegisterNetEvent("QBCore:Player:SetPlayerData", function(val)
     PlayerData = val
+    syncCoreStatusValues()
 end)
 
 AddEventHandler('onResourceStart', function(resourceName)
@@ -164,6 +220,8 @@ AddEventHandler('onResourceStart', function(resourceName)
 
     HandleSetupResource()
     loadSettings()
+    PlayerData = QBCore.Functions.GetPlayerData()
+    syncCoreStatusValues()
 end)
 
 AddEventHandler("pma-voice:radioActive", function(isRadioTalking)
@@ -605,24 +663,49 @@ RegisterNetEvent('hud:client:ToggleAirHud', function()
 end)
 
 RegisterNetEvent('hud:client:UpdateNeeds', function(newHunger, newThirst)
-    hunger = newHunger
-    thirst = newThirst
+    if type(newHunger) == 'table' then
+        hunger = clampPercent(newHunger.hunger or newHunger.food, hunger)
+        thirst = clampPercent(newHunger.thirst or newHunger.water, thirst)
+        return
+    end
+
+    hunger = clampPercent(newHunger, hunger)
+    thirst = clampPercent(newThirst, thirst)
 end)
 
 AddStateBagChangeHandler('hunger', ('player:%s'):format(serverId), function(_, _, value)
-    hunger = value
+    if value == nil then return end
+    hunger = clampPercent(value, hunger)
 end)
 
 AddStateBagChangeHandler('thirst', ('player:%s'):format(serverId), function(_, _, value)
-    thirst = value
+    if value == nil then return end
+    thirst = clampPercent(value, thirst)
 end)
 
 RegisterNetEvent('hud:client:UpdateStress', function(newStress)
-    stress = newStress
+    stress = clampPercent(newStress, stress)
 end)
 
 AddStateBagChangeHandler('stress', ('player:%s'):format(serverId), function(_, _, value)
-    stress = value
+    if value == nil then return end
+    stress = clampPercent(value, stress)
+end)
+
+
+AddStateBagChangeHandler('food', ('player:%s'):format(serverId), function(_, _, value)
+    if value == nil then return end
+    hunger = clampPercent(value, hunger)
+end)
+
+AddStateBagChangeHandler('water', ('player:%s'):format(serverId), function(_, _, value)
+    if value == nil then return end
+    thirst = clampPercent(value, thirst)
+end)
+
+AddStateBagChangeHandler('stresslevel', ('player:%s'):format(serverId), function(_, _, value)
+    if value == nil then return end
+    stress = clampPercent(value, stress)
 end)
 
 RegisterNetEvent('hud:client:ToggleShowSeatbelt', function()
@@ -1025,6 +1108,7 @@ CreateThread(function()
         else
             updateShowPlayerHud(false)
             updateShowVehicleHud(false)
+            
             DisplayRadar(false)
             Wait(1000)
         end
