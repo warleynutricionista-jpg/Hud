@@ -72,23 +72,27 @@ local function syncCoreStatusValues()
     local metadata = PlayerData and PlayerData.metadata or nil
 
     if metadata then
-        if metadata.hunger ~= nil then
-            hunger = clampPercent(metadata.hunger, hunger)
+        local metadataHunger = metadata.hunger or metadata.food
+        local metadataThirst = metadata.thirst or metadata.water
+        local metadataStress = metadata.stress or metadata.stresslevel
+
+        if metadataHunger ~= nil then
+            hunger = clampPercent(metadataHunger, hunger)
         end
 
-        if metadata.thirst ~= nil then
-            thirst = clampPercent(metadata.thirst, thirst)
+        if metadataThirst ~= nil then
+            thirst = clampPercent(metadataThirst, thirst)
         end
 
-        if metadata.stress ~= nil then
-            stress = clampPercent(metadata.stress, stress)
+        if metadataStress ~= nil then
+            stress = clampPercent(metadataStress, stress)
         end
     end
 
     if LocalPlayer and LocalPlayer.state then
-        local stateHunger = LocalPlayer.state.hunger
-        local stateThirst = LocalPlayer.state.thirst
-        local stateStress = LocalPlayer.state.stress
+        local stateHunger = LocalPlayer.state.hunger or LocalPlayer.state.food
+        local stateThirst = LocalPlayer.state.thirst or LocalPlayer.state.water
+        local stateStress = LocalPlayer.state.stress or LocalPlayer.state.stresslevel
 
         if stateHunger ~= nil then
             hunger = clampPercent(stateHunger, hunger)
@@ -659,6 +663,12 @@ RegisterNetEvent('hud:client:ToggleAirHud', function()
 end)
 
 RegisterNetEvent('hud:client:UpdateNeeds', function(newHunger, newThirst)
+    if type(newHunger) == 'table' then
+        hunger = clampPercent(newHunger.hunger or newHunger.food, hunger)
+        thirst = clampPercent(newHunger.thirst or newHunger.water, thirst)
+        return
+    end
+
     hunger = clampPercent(newHunger, hunger)
     thirst = clampPercent(newThirst, thirst)
 end)
@@ -678,6 +688,22 @@ RegisterNetEvent('hud:client:UpdateStress', function(newStress)
 end)
 
 AddStateBagChangeHandler('stress', ('player:%s'):format(serverId), function(_, _, value)
+    if value == nil then return end
+    stress = clampPercent(value, stress)
+end)
+
+
+AddStateBagChangeHandler('food', ('player:%s'):format(serverId), function(_, _, value)
+    if value == nil then return end
+    hunger = clampPercent(value, hunger)
+end)
+
+AddStateBagChangeHandler('water', ('player:%s'):format(serverId), function(_, _, value)
+    if value == nil then return end
+    thirst = clampPercent(value, thirst)
+end)
+
+AddStateBagChangeHandler('stresslevel', ('player:%s'):format(serverId), function(_, _, value)
     if value == nil then return end
     stress = clampPercent(value, stress)
 end)
